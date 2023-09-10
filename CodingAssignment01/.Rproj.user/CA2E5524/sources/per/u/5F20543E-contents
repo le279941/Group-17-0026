@@ -1,0 +1,9 @@
+data <- read.csv("../Datasets/insuranceModified.csv")
+
+library(dplyr)
+
+for (i in 1:10) {
+  write.csv(sample_n(data,50),
+            paste0("../Datasets/insurance","_0126_Group",i,".csv"),
+            row.names = F)  
+}
