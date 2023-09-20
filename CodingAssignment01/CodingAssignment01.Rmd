@@ -39,11 +39,6 @@ Answer the following questions using complete sentences and attach all output, p
 ```{r dataset, include=FALSE}
 # Bring in the dataset here
 
-file_path <- "C:/Users/LEILA/Documents/GitHub/ECO6416_Group16/Data/Insurance_Data_Group16.csv"
-
-data <- read.csv(file_path)
-
-head(data)
 
 ```
 
@@ -55,8 +50,6 @@ Perform univariate analyses on the quantitative variables (center, shape, spread
 
 ```{r q1}
 
-
-
 ```
 
 # Question 2
@@ -64,8 +57,6 @@ Perform univariate analyses on the quantitative variables (center, shape, spread
 Perform bivariate analyses on the quantitative variables (direction, strength and form). Describe the linear association between all variables. 
 
 ```{r q2}
-
-
 
 ```
 
