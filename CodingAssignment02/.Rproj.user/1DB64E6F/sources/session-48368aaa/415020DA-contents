@@ -1,0 +1,207 @@
+---
+title: "Coding Assignment 1"
+author: "Group 16"
+date: "Due: 2023-10-01 23:59"
+output:
+  html_document:
+    toc: yes
+    toc_depth: 2
+    toc_float: yes
+  pdf_document:
+    toc: yes
+    toc_depth: '2'
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r packages}
+# Put any packages you want here
+
+```
+
+A Florida health insurance company wants to predict annual claims for individual clients. The company pulls a random sample of 100 customers. The owner wishes to charge an actuarially fair premium to ensure a normal rate of return. The owner collects all of their current customer's health care expenses from the last year and compares them with what is known about each customer's plan.
+
+The data on the 100 customers in the sample is as follows:
+
+-   Charges: Total medical expenses for a particular insurance plan (in dollars)
+-   Age: Age of the primary beneficiary
+-   BMI: Primary beneficiary's body mass index (kg/m2)
+-   Female: Primary beneficiary's birth sex (0 = Male, 1 = Female)
+-   Children: Number of children covered by health insurance plan (includes other dependents as well)
+-   Smoker: Indicator if primary beneficiary is a smoker (0 = non-smoker, 1 = smoker)
+-   Cities: Dummy variables for each city with the default being Sanford
+
+Answer the following questions using complete sentences and attach all output, plots, etc. within this report.
+
+**For this assignment, ignore the categorical variables (gender, smoker, cities)**
+
+```{r dataset, include=FALSE}
+# Bring in the dataset here
+library(readr)
+Insurance_Data_Group16 <- read_csv("~/GitHub/ECO6416_Group16/Data/Insurance_Data_Group16.csv")
+View(Insurance_Data_Group16)
+
+library(readr)
+library(readxl)
+library(dplyr)
+library(gt)
+library(gtsummary)
+library(corrplot)
+library(plotly)
+
+Insurance_Data_Group16$Smoker <- NULL
+Insurance_Data_Group16$Female<-NULL
+Insurance_Data_Group16$WinterSprings<-NULL
+Insurance_Data_Group16$WinterPark<-NULL
+Insurance_Data_Group16$Oviedo<-NULL
+
+str(Insurance_Data_Group16)
+head(Insurance_Data_Group16)
+tail(Insurance_Data_Group16)
+
+```
+
+
+# Question 1
+
+Perform univariate analyses on the quantitative variables (center, shape, spread). Include descriptive statistics, and histograms. Be sure to use terms discussed in class such as bimodal, skewed left, etc.
+
+```{r q1}
+summary(Insurance_Data_Group16)
+
+#Mean, Median, Range, SD, IQR
+Insurance_Data_Group16 %>%
+tbl_summary(statistic=list(all_continuous() ~ c("{mean} ({sd})",
+"{median} ({p25}, {p75})",
+"{min}, {max}"),
+all_categorical() ~ "{n} / {N} ({p}%)"),
+type=all_continuous() ~ "continuous2"
+)
+
+```
+<br>
+<br>
+<center>**Charges:**</center>
+The mean Charge is $13,819 and the median is $8,825, suggesting the data is skewed right or postively skewed. The data is unimodal. The range of the Charges is from $1,256 to $47,928. The interquartile range (IQR) is from $5,842 to $18,278.
+```{r q1a}
+hist(Insurance_Data_Group16$Charges, main="Histogram for Charges", xlab="Charges", ylab="Frequency", col="hotpink", border="white")
+boxplot(Insurance_Data_Group16$Charges, main="Boxplot for Charges")
+```
+
+<center>**Age:**</center>
+The average Age is 41.6 years, and the median Age is 42 years. The mean and median are very close, suggesting a relatively symmetrical distribution. The data is multimodal. The Age ranges from 18 to 64 years. The IQR is from 30.5 to 54 years.
+```{r q1b}
+hist(Insurance_Data_Group16$Age, main="Histogram for Age", xlab="Age", ylab="Frequency", col="hotpink", border="white")
+boxplot(Insurance_Data_Group16$Age, main="Boxplot for Age")
+```
+
+<center>**BMI:**</center>
+The mean BMI is 30.73, and the median BMI is 30.08. The mean is slightly higher than the median and distribution is symmetrical. The data is unimodal. The BMI values range from 17.67 to 47.60. The IQR is from 26.32 to 33.78.
+```{r q1c}
+hist(Insurance_Data_Group16$BMI, main="Histogram for BMI", xlab="BMI", ylab="Frequency", col="hotpink", border="white")
+boxplot(Insurance_Data_Group16$BMI, main="Boxplot for BMI")
+```
+
+<center>**Children**:</center>
+On average, individuals in the dataset have approximately 1.03 Children, with a median of 1 Child. The data is skewed right and bimodal. The number of Children varies from 0 to 5. The IQR is from 0 to 2 Children.
+```{r q1d}
+hist(Insurance_Data_Group16$Children, main="Histogram for Children", xlab="Children", ylab="Frequency", col="hotpink", border="white")
+boxplot(Insurance_Data_Group16$Children, main="Boxplot for Children")
+```
+
+# Question 2
+
+Perform bivariate analyses on the quantitative variables (direction, strength and form). Describe the linear association between all variables.
+
+There is a weak linear correlation between the following variables:<br>
+<div style="margin-left: 40px;">BMI and Children: -.02</div>
+<div style="margin-left: 40px;">Charges and Children and Charges and BMI: .09 and .21 respectively</div>
+<div style="margin-left: 40px;">Age and Children and Age and BMI: -.07 and .09 respectively</div>
+There is a stronger liner correlation between Age and Charges, but the correlation still would be considered weak with a correlation of .42. All number are closer to zero than (-1,1) and would all display weak linear correlations.
+```{r q2}
+#Distribution and relationships of each variable
+pairs(Insurance_Data_Group16, col="hotpink")
+
+#Correlation
+#Correlation between Charges and Children
+cor(Insurance_Data_Group16$Charges, Insurance_Data_Group16$Children)
+corrplot(cor(Insurance_Data_Group16),
+type="lower",
+order="hclust",
+tl.col="black",
+tl.srt=45,
+addCoef.col = "black",
+diag=FALSE)
+
+#Correlation between Age and BMI
+cor(Insurance_Data_Group16$Age, Insurance_Data_Group16$BMI)
+corrplot(cor(Insurance_Data_Group16),
+type="lower",
+order="hclust",
+tl.col="black",
+tl.srt=45,
+addCoef.col = "black",
+diag=FALSE)
+
+#Regression 
+#fit simple linear regression model
+fit<-lm(Charges~Children, data=Insurance_Data_Group16)
+summary(fit)
+#fit simple linear regression model
+fit<-lm(Age~BMI, data=Insurance_Data_Group16)
+summary(fit)
+
+#Scatterplots
+#Scatterplot(s) of Charges vs. Number of Children
+ggplot(Insurance_Data_Group16,aes(Charges,Children))+
+  geom_point(color='hotpink')+
+  theme_bw()+
+  labs(title="Medical Expenses & Children of the Beneficiary")
+#Scatterplot of Age vs. BMI
+ggplot(Insurance_Data_Group16,aes(Age,BMI))+
+  geom_point(color='hotpink')+
+  theme_bw()+
+  labs(title="Data by Age & BMI")
+```
+
+
+# Question 3
+
+Generate a regression equation in the following form:
+
+$$Charges = \beta_{0}+\beta_{1}*Age+\beta_{2}*BMI+\beta_{3}*Children$$
+
+```{r q3a}
+
+model<-lm(Charges~Age+BMI+Children, data=Insurance_Data_Group16)
+summary(model)
+
+coefs <- coefficients(model)
+```
+
+also write out the regression cleanly in this document.
+
+```{r q3b}
+cat("Charges =", 
+    round(coefs[1], 2), 
+    "+", round(coefs[2], 2), "*Age", 
+    "+", round(coefs[3], 2), "*BMI", 
+    "+", round(coefs[4], 2), "*Children", "\n")
+```
+
+
+# Question 4
+
+An eager insurance representative comes back with a potential client. The client is 40, their BMI is 30, and they have one dependent. Using the regression equation above, predict the amount of medical expenses associated with this policy. (Provide a 95% confidence interval as well)
+
+We anticipate the client's potential medical expenses to be $12,943.56. With a 95% confidence interval, we predict the range to be within $10,718.09 and $15,169.04.
+```{r q4}
+newPrediction<-data.frame(Age=40,
+                          BMI=30,
+                          Children=1)
+
+prediction <- predict(model, newdata=newPrediction, interval="confidence", level=0.95)
+print(prediction)
+```
