@@ -1,6 +1,6 @@
 ---
 title: "Coding Assignment 3"
-author: "Team N"
+author: "Team 16"
 date: "Due: 2023-12-09 23:59"
 output: 
   pdf_document:
@@ -8,7 +8,15 @@ output:
 ---
 
 ```{r setup, include=FALSE}
-#Put any packages you need here
+options(repos = c(CRAN = "https://cran.rstudio.com"))
+library(readr)
+library(tinytex)
+library(readxl)
+library(dplyr)
+library(ggplot2)
+library(lmtest)
+library(car)
+tinytex::install_tinytex(force = TRUE)
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
@@ -29,6 +37,8 @@ Answer the following questions using complete sentences and attach all output, p
 
 ```{r dataset, include=TRUE}
 # Bring in the dataset here.
+Insurance_Data_Group16 <- read_csv("~/GitHub/ECO6416_Group16/Data/Insurance_Data_Group16.csv", 
+                                   show_col_types = FALSE)
 ```
 
 
@@ -38,7 +48,14 @@ Answer the following questions using complete sentences and attach all output, p
 Randomly select 30 observations from the sample and exclude from all modeling (i.e. n=47). Provide the summary statistics (min, max, std, mean, median) of the quantitative variables for the 70 observations.
 
 ```{r q1}
-#
+set.seed(123456)
+
+index <- sample(seq_len(nrow(Insurance_Data_Group16)), size = 30)
+
+train <- Insurance_Data_Group16[-index,]
+test <- Insurance_Data_Group16[index,]
+
+summary(train)
 ```
 
 
@@ -47,7 +64,10 @@ Randomly select 30 observations from the sample and exclude from all modeling (i
 Provide the correlation between all quantitative variables
 
 ```{r}
-#
+quantitative_vars <- train[, c("Charges", "Age", "BMI", "Children")]
+
+correlation_matrix <- cor(quantitative_vars, use = "complete.obs")
+correlation_matrix
 ```
 
 
@@ -55,6 +75,27 @@ Provide the correlation between all quantitative variables
 
 Run a regression that includes all independent variables in the data table. Does the model above violate any of the Gauss-Markov assumptions? If so, what are they and what is the solution for correcting?
 
+```{r}
+model <- lm(Charges ~ ., data = train)
+model_summary <- summary(model)
+print(model_summary)
+
+# Linearity and Homoscedasticity (Residuals vs Fitted Plot)
+plot(model, which = 1, col = "lightblue")
+
+# Independence (Durbin-Watson Test)
+dwtest(model)
+
+# Multicollinearity (Variance Inflation Factors)
+vif_values <- vif(model)
+print(vif_values)
+
+# Normal Distribution of Errors (Q-Q Plot)
+qqPlot(model, main = "Q-Q Plot for Model Residuals", col = "lightblue")
+
+# Histogram (Residuals)
+hist(resid(model), main = "Histogram of Residuals", xlab = "Residuals", col = "lightblue")
+```
 
 ## Question 4
 
