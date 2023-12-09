@@ -20,6 +20,8 @@ library(plotly)
 library(gt)
 library(gtsummary)
 library(tidyr)
+install.packages("recipes")
+install.packages("dummies")
 tinytex::install_tinytex(force = TRUE)
 knitr::opts_chunk$set(echo = TRUE)
 ```
@@ -50,14 +52,36 @@ Randomly select 30 observations from the sample and exclude from all modeling (i
 
 ```{r q1}
 set.seed(123456)
+
+round_and_transpose <- function(data) {
+  numeric_vars <- sapply(data, is.numeric)
+  numeric_data <- data[, numeric_vars]
+  
+  # Summary statistics
+  custom_summary <- function(x) {
+    c(min = min(x, na.rm = TRUE),
+      max = max(x, na.rm = TRUE),
+      std = sd(x, na.rm = TRUE),
+      mean = mean(x, na.rm = TRUE),
+      median = median(x, na.rm = TRUE))
+  }
+  
+  # Apply custom summary function to each number column
+  summary_data <- sapply(numeric_data, custom_summary)
+  
+  # Round summary data to 2 decimal places
+  rounded_summary <- round(summary_data, 2)
+  
+  # Transpose to have statistics as rows
+  return(t(rounded_summary))
+}
+
 index <- sample(seq_len(nrow(Insurance_Data_Group16)), size = 30)
 train <- Insurance_Data_Group16[-index,]
 test <- Insurance_Data_Group16[index,]
-#I am going to round the values to specific decimals for a cleaner presentation
-numeric_vars <- sapply(train, is.numeric)
-summary_train <- summary(train[, numeric_vars])
-rounded_summary_train <- lapply(summary_train, function(x) if(is.numeric(x)) round(x,2) else x)
-print(rounded_summary_train)
+summary_train <- round_and_transpose(train)
+
+print(summary_train)
 ```
 
 ## Question 2
@@ -68,7 +92,8 @@ Provide the correlation between all quantitative variables
 quantitative_vars <- train[, c("Charges", "Age", "BMI", "Children")]
 
 correlation_matrix <- cor(quantitative_vars, use = "complete.obs")
-correlation_matrix
+rounded_correlation_matrix <- round(correlation_matrix, 2)
+print(rounded_correlation_matrix)
 ```
 
 ## Question 3
@@ -82,35 +107,28 @@ print(model_summary)
 ```
 
 **Independence:**
-
 ```{r}
 # Independence (Durbin-Watson Test)
 dwtest(model)
 ```
-
-The residuals should be independent of each other, which means there should be no correlation between them. Positive autocorrelation in residuals suggests that consecutive errors may be correlated. For example, *if medical expenses increase at a different rate for smokers vs non-smokers as they age*, it may lead to autocorrelation. The Durbin-Watson test result shows a DW value of 2.0828 with a p-value of 0.6532, which suggests that there is no significant autocorrelation, and the independence assumption is not violated.
+>The residuals should be independent of each other, which means there should be no correlation between them. Positive autocorrelation in residuals suggests that consecutive errors may be correlated. For example, *if medical expenses increase at a different rate for smokers vs non-smokers as they age*, it may lead to autocorrelation. The Durbin-Watson test result shows a DW value of 2.0828 with a p-value of 0.6532, which suggests that there is no significant autocorrelation, and the independence assumption is not violated.
 
 **Homoscedasticity:**
-
 ```{r}
 # Homoscedasticity (Constant Variance of Residuals)
 bptest_result <- bptest(model)
 print(bptest_result)
 ```
-
-The residuals should have a constant variance, which can be tested with the Non-constant Variance Score Test. The presence of heteroscedasticity implies unequal variance of residuals. This might be influenced *by varying patterns in medical expenses for different groups, like smokers vs. non-smokers or certain age ranges*. A non-significant p-value indicates that the assumption of homoscedasticity is not violated. The test result has a p-value of 0.7691, which is above the common alpha level of 0.05, suggesting a possible, but not definitive, violation of homoscedasticity. For the potential homoscedasticity issue, we may consider utilizing robust standard errors or transforming the response variable.
+>The residuals should have a constant variance, which can be tested with the Non-constant Variance Score Test. The presence of heteroscedasticity implies unequal variance of residuals. This might be influenced *by varying patterns in medical expenses for different groups, like smokers vs. non-smokers or certain age ranges*. A non-significant p-value indicates that the assumption of homoscedasticity is not violated. The test result has a p-value of 0.7691, which is above the common alpha level of 0.05, suggesting a possible, but not definitive, violation of homoscedasticity. For the potential homoscedasticity issue, we may consider utilizing robust standard errors or transforming the response variable.
 
 **Multicollinearity:**
-
 ```{r}
 # Multicollinearity (Variance Inflation Factors)
 vif(model)
 ```
-
-The predictors should not be perfectly collinear. The VIF values are all well below 5, indicating that multicollinearity is not a concern for this model.
+>The predictors should not be perfectly collinear. The VIF values are all well below 5, indicating that multicollinearity is not a concern for this model.
 
 **Normality of Error Terms:**
-
 ```{r}
 #Normality of Error Terms
 qqnorm(residuals(model), col = "lightblue")
@@ -118,8 +136,8 @@ qqline(residuals(model), col = "pink")
 
 shapiro.test(residuals(model))
 ```
+>Looking into specific relationships between other variables may uncover patterns affecting normality. For instance, *if the impact of age on medical expenses differs significantly between genders*, it may contribute to non-normality. The Q-Q plot analysis indicates a violation of the normality assumption of the Gauss-Markov theorem. While the central part of the residuals aligns well with the normal line, indicating appropriate behavior for the bulk of the data, there is a clear deviation in the tails---especially on the right---suggesting a positive skew in the distribution of residuals. This is corroborated by a Shapiro-Wilk test that returned a p-value of 1.06×10\^(-)6, which is significantly below the 0.05 threshold, further confirming the non-normality of residuals. To correct this, one could consider transforming the dependent variable, dealing with outliers, incorporating omitted variables, or using a different type of regression model such as a generalized linear model that does not assume normal distribution of errors.
 
-Looking into specific relationships between other variables may uncover patterns affecting normality. For instance, *if the impact of age on medical expenses differs significantly between genders*, it may contribute to non-normality. The Q-Q plot analysis indicates a violation of the normality assumption of the Gauss-Markov theorem. While the central part of the residuals aligns well with the normal line, indicating appropriate behavior for the bulk of the data, there is a clear deviation in the tails---especially on the right---suggesting a positive skew in the distribution of residuals. This is corroborated by a Shapiro-Wilk test that returned a p-value of 1.06×10\^(-)6, which is significantly below the 0.05 threshold, further confirming the non-normality of residuals. To correct this, one could consider transforming the dependent variable, dealing with outliers, incorporating omitted variables, or using a different type of regression model such as a generalized linear model that does not assume normal distribution of errors.
 
 ## Question 4
 
@@ -145,24 +163,50 @@ summary(model_interaction)
 predictions_model1 <- exp(predict(model_log))
 predictions_model2 <- predict(model_sqrt)^2
 predictions_model3 <- predict(model_interaction)
+
 # Combine actual and predicted values
 scatter_data <- data.frame(
-Actual = train$Charges,
-Model1 = predictions_model1,
-Model2 = predictions_model2,
-Model3 = predictions_model3
+  Actual = train$Charges,
+  Model1 = predictions_model1,
+  Model2 = predictions_model2,
+  Model3 = predictions_model3
 )
+
 # Scatterplot
-plot(scatter_data$Actual, scatter_data$Model1, col = "pink", main = "Model Comparison", xlab = "Actual Charges", ylab = "Predicted Charges")
+plot(
+  scatter_data$Actual, 
+  scatter_data$Model1, 
+  col = "pink", 
+  main = "Model Comparison", 
+  xlab = "Actual Charges", 
+  ylab = "Predicted Charges"
+)
 points(scatter_data$Actual, scatter_data$Model2, col = "lightblue")
 points(scatter_data$Actual, scatter_data$Model3, col = "lightgreen")
-legend("topright", legend = c("Model 1", "Model 2", "Model 3"), col = c("pink", "lightblue", "lightgreen"), pch = 1)
+legend(
+  "topright", 
+  legend = c("Model 1", "Model 2", "Model 3"),        
+  col = c("pink", "lightblue", "lightgreen"), 
+  pch = 1
+)
 
 # Natural Log of Charges
 par(mfrow = c(1, 2))
-hist(train$Charges, col = "skyblue", main = "Distribution of Charges", xlab = "Charges", ylab = "Frequency") # Before
+hist(
+  train$Charges, 
+  col = "lightblue", 
+  main = "Distribution of Charges", 
+  xlab = "Charges", 
+  ylab = "Frequency"
+) # Before
 train$lnCharges <- log(train$Charges)
-hist(train$lnCharges, col = "lightgreen", main = "Distribution of Log Charges", xlab = "Log Charges", ylab = "Frequency") # After
+hist(
+  train$lnCharges, 
+  col = "lightgreen", 
+  main = "Distribution of Log Charges", 
+  xlab = "Log Charges", 
+  ylab = "Frequency"
+) # After
 ```
 
 Let's break down the fit measures, signs & significance of coefficients by looking at each model separately. (Note - we are going to focus on the adjusted R-squared because it accounts for the number of predictors in the model, and penalizes the inclusion of unnecessary predictors that do not contribute to explaining variance.)
@@ -286,6 +330,7 @@ If we break down each of these performance measures, we see that:
 
 Therefore, we've determined that Model 2 appears to be the better choice for short-term predictive accuracy, as it consistently exhibits lower values across all three performance measures (MAE, MSE, RMSE).
 
+
 ## Question 6
 
 Provide interpretations of the coefficients, do the signs make sense? Perform marginal change analysis (thing 2) on the independent variables.
@@ -301,24 +346,35 @@ coefficients_model1 <- coef(model_log)
 marginal_change_model1 <- exp(coefficients_model1)
 print(marginal_change_model1)
 
+# Obtain coefficients and perform marginal change analysis for Model 1
+coefficients_model1 <- coef(model_log)
+marginal_change_model1 <- exp(coefficients_model1)
+print(marginal_change_model1)
+
 # Marginal Change Analysis - Model 2: Square Root Transformation of Charges
 coefficients_model2 <- coef(model_sqrt)
 marginal_change_model2 <- sqrt(coefficients_model2)
 marginal_change_model2[is.nan(marginal_change_model2)] <- 0
 print(marginal_change_model2)
+marginal_change_model2[is.nan(marginal_change_model2)] <- 0  # Set NaN values to 0
+
+# Obtain coefficients and perform marginal change analysis for Model 2
+coefficients_model2 <- coef(model_sqrt)
+marginal_change_model2 <- sqrt(coefficients_model2)
+marginal_change_model2[is.nan(marginal_change_model2)] <- 0  # Handle NaN values
+print(marginal_change_model2)
 ```
 
-**Model 1:**\
-Intercept (7.705e+00) - This is expected when all other variables are 0\
-A one-unit increase is associated with Charges, Age, BMI, and Children\
-Being female and a smoker are both associated with a decrease in log(Charges).\
-Being in Winter Springs, Winter Park or Oviedo are all associated with an increase in log(Charges).\
-And last, scaled_charges is not defined due to singularities, so it is considered NA.
+> **Model 1:**\
+> The intercept (7.705e+00) in Model 1 represents the expected log(Charges) when all other variables are set to 0. A one-unit increase in Age (0.025), BMI (0.035), and the number of Children (0.074) is associated with respective changes in log(Charges). Being female (Female: -0.113) or a smoker (Smoker: -0.239) is associated with a decrease in log(Charges), suggesting that females and smokers typically have lower logged charges. Additionally, residing in Winter Springs, Winter Park, or Oviedo is associated with an increase in log(Charges). Notably, the variable 'scaled_charges' is not defined due to singularities, resulting in NA values.
 
-In general, the signs of these coefficients make sense. For example, being a smoker is associated with having a negative change in log(Charges), which suggests that smokers typically have lower logged charges.
+> In interpreting these coefficients, the signs align with expectations. For instance, the negative coefficients for being a smoker and female correspond to a negative change in log(Charges), indicating that smokers and females generally have lower logged charges.
 
-**Model 2**:\
-Very similar in regards to interpretations, with the only difference being that Winter Park is associated with a decrease. All others are essentially the same.
+> **Model 2:**\
+> Model 2 exhibits similar interpretations to Model 1, with the only notable difference being that residing in Winter Park is associated with a decrease in log(Charges), while all other interpretations remain consistent.
+
+> These interpretations provide insights into the relationships between independent variables and log-transformed charges in both models, considering magnitude, statistical significance, and domain-specific knowledge.
+
 
 ## Question 7
 
@@ -333,13 +389,85 @@ An eager insurance representative comes back with five potential clients. Using 
 | 5        | 45  | 27  | 1      | 3        | 0      | Oviedo         |
 
 ```{r}
-#
+#model_for_predictions <- model_sqrt
+
+new_customers <- data.frame(
+  Age = c(60, 40, 25, 33, 45),
+  BMI = c(22, 30, 25, 35, 27),
+  Female = c(1, 0, 0, 1, 1),
+  Children = c(0, 1, 0, 2, 3),
+  Smoker = c(0, 0, 1, 0, 0),
+  City = c("Oviedo", "Sanford", "Winter Park", "Winter Springs", "Oviedo"),
+  Charges = rep(NA, 5)  # Placeholder for Charges
+)
+
+# Assuming 'scaled_charges' and 'log_charges' were used in the training data
+new_customers$scaled_charges <- scale(new_customers$Charges, center = mean_charges, scale = sd_charges)
+new_customers$log_charges <- log(new_customers$Charges)
+
+# Assuming 'WinterSprings', 'WinterPark', 'Oviedo' were dummy variables in the training data
+new_customers$WinterSprings <- as.integer(new_customers$City == "Winter Springs")
+new_customers$WinterPark <- as.integer(new_customers$City == "Winter Park")
+new_customers$Oviedo <- as.integer(new_customers$City == "Oviedo")
+
+# Remove unnecessary variables
+new_customers$lnCharges <- NULL
+new_customers$sqrt_charges <- NULL
+new_customers$interaction_term <- NULL
+new_customers$Sanford <- NULL  # If Sanford was not used during training
+
+# Match the order of variables with the training data
+new_customers <- new_customers[, intersect(names(train), names(new_customers))]
+
+# Predictions using a simple linear regression model
+linear_model <- lm(Charges ~ Age + BMI + Female + Children + Smoker + WinterSprings + 
+                     WinterPark + Oviedo, data = train)
+predictions <- predict(linear_model, newdata = new_customers)
+predict(linear_model, newdata = new_customers, interval = "confidence")
+
+# Display predictions
+print(predictions)
+
+# Predictions using a simple linear regression model
+linear_model <- lm(Charges ~ Age + BMI + Female + Children + Smoker + WinterSprings + 
+                     WinterPark + Oviedo, data = train)
+predictions <- predict(linear_model, newdata = new_customers, interval = "confidence", level = 0.95)
+
+# Create a data frame for predictions
+predictions_df <- data.frame(
+  Customer = 1:5,
+  Prediction = predictions[, 1],
+  Lower = predictions[, 2],
+  Upper = predictions[, 3]
+)
+
+# Plotting the bar chart with confidence intervals
+ggplot(predictions_df, aes(x = Customer, y = Prediction)) +
+  geom_bar(stat = "identity", fill = "lightpink", color = "black") +
+  geom_errorbar(aes(ymin = Lower, ymax = Upper), width = 0.2, position = position_dodge(0.9)) +
+  labs(title = "Predicted Charges for Potential Clients",
+       x = "Customer",
+       y = "Predicted Charges") +
+  theme_minimal()
 ```
 
 ## Question 8
 
 The owner notices that some of the predictions are wider than others, explain why.
 
+> Wider prediction intervals indicate higher uncertainty in the predictions, which can arise from various sources. Clients 3 and 5, with prediction intervals of 28996.016 and 12383.797, exhibit a greater range due to more variability in the data *or* potential outliers that influence the model's predictions. Clients 3 and 5 have the largest age gap, one has children and the other one does not, and one smokes while the other does not.
+>
+> On the other hand, Clients 2 and 4, with narrower intervals of 8670.376 and 7855.437, were closer in age and may have more consistent and less variable data that leads to more confident predictions.
+>
+>The width of prediction intervals is influenced by the specific characteristics of each client's input data and the inherent uncertainties in the modeling process, resulting in varying levels of confidence in the predicted charge values.
+
+
 ## Question 9
 
 Are there any prediction problems that occur with the five potential clients? If so, explain.
+
+> Perhaps. The most obvious, as mentioned above, are prediction intervals for Clients 3 and 5 being notably wide. The wider intervals suggests higher uncertainty in predicting insurance charges for these clients. This uncertainty could stem from unique characteristics or outliers in their data, making it challenging for us to interpret precise predictions.
+>
+> Aside from that, the predicted insurance charge for Client 4 is relatively low compared to the other clients. This indicates a potential outlier, or perhaps unique characteristics that weren't captured well by the model. It would be wise to further assess Client 4 and uncover any data discrepancies that are present.
+>
+> Addressing these issues could enhance overall accuracy of the predictions for all five potential clients.
